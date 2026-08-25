@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+no_open=0
+if [[ ${1:-} == "--no-open" ]]; then
+  no_open=1
+  shift
+fi
+if [[ $# -ne 0 ]]; then
+  echo "Usage: ./scripts/dev [--no-open]" >&2
+  exit 2
+fi
+
+for required_command in uv npm curl openssl; do
+  command -v "$required_command" >/dev/null || {
+    echo "Missing required command: $required_command" >&2
+    exit 1
+  }
+done
+if [[ $no_open -eq 0 ]]; then
+  command -v open >/dev/null || { echo "Missing required command: open" >&2; exit 1; }
+fi
+
+assert_port_available() {
+  local port=$1
+  uv --directory "$repo_root/backend" run python -c '
+import socket
+import sys
+
+port = int(sys.argv[1])
+with socket.socket() as listener:
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        listener.bind(("127.0.0.1", port))
+    except OSError:
+        raise SystemExit(1)
+' "$port" >/dev/null 2>&1 || {
+    echo "ExcelAgent requires free port: $port" >&2
+    exit 1
+  }
+}
+
+unset EXCEL_AGENT_LAUNCH_TOKEN
+unset excel_agent_launch_token
+unset EXCEL_AGENT_UI_INSTANCE_CHALLENGE
+unset excel_agent_ui_instance_challenge
+assert_port_available 8000
+assert_port_available 5173
+
+excel_agent_launch_token=$(openssl rand -hex 32)
+excel_agent_ui_instance_challenge=$(openssl rand -hex 32)
+backend_pid=""
+frontend_pid=""
+
+cleanup() {
+  [[ -n $backend_pid ]] && kill "$backend_pid" 2>/dev/null || true
+  [[ -n $frontend_pid ]] && kill "$frontend_pid" 2>/dev/null || true
+  [[ -n $backend_pid ]] && wait "$backend_pid" 2>/dev/null || true
+  [[ -n $frontend_pid ]] && wait "$frontend_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+EXCEL_AGENT_LAUNCH_TOKEN="$excel_agent_launch_token" \
+  uv --directory "$repo_root/backend" run uvicorn excel_agent.api.app:create_app \
+  --factory --host 127.0.0.1 --port 8000 &
+backend_pid=$!
+EXCEL_AGENT_UI_INSTANCE_CHALLENGE="$excel_agent_ui_instance_challenge" \
+  npm --prefix "$repo_root/frontend" run dev -- --host 127.0.0.1 --port 5173 &
+frontend_pid=$!
+
+ready=0
+health=""
+readiness_deadline=$((SECONDS + 29))
+set_curl_budget() {
+  curl_request_timeout=$((readiness_deadline - SECONDS))
+  [[ $curl_request_timeout -gt 0 ]] || return 1
+  [[ $curl_request_timeout -le 1 ]] || curl_request_timeout=1
+}
+
+probe_owned_services() {
+  set_curl_budget || return 1
+  health=$(curl -fsS --connect-timeout "$curl_request_timeout" \
+    --max-time "$curl_request_timeout" \
+    http://127.0.0.1:8000/api/health 2>/dev/null || true)
+  [[ $health == *'"status":"ok"'* && \
+    $health == *'"service":"excel-agent-api"'* ]] || return 1
+
+  set_curl_budget || return 1
+  ui_instance_challenge=$(curl -fsS --connect-timeout "$curl_request_timeout" \
+    --max-time "$curl_request_timeout" \
+    http://127.0.0.1:5173/__excelagent/ready 2>/dev/null || true)
+  [[ $ui_instance_challenge == "$excel_agent_ui_instance_challenge" ]]
+}
+
+# Bash 3.2 exposes whole-second timing only. The one-second reserve keeps the
+# final bounded request or sleep inside the external 30-second budget.
+while set_curl_budget; do
+  kill -0 "$backend_pid" 2>/dev/null || break
+  kill -0 "$frontend_pid" 2>/dev/null || break
+  if probe_owned_services; then
+    kill -0 "$backend_pid" 2>/dev/null || break
+    kill -0 "$frontend_pid" 2>/dev/null || break
+    ready=1
+    break
+  fi
+  set_curl_budget || break
+  sleep 0.25
+done
+[[ $ready -eq 1 ]] || { echo "ExcelAgent services did not become ready" >&2; exit 1; }
+
+kill -0 "$backend_pid" 2>/dev/null || {
+  echo "ExcelAgent backend stopped before browser launch" >&2
+  exit 1
+}
+kill -0 "$frontend_pid" 2>/dev/null || {
+  echo "ExcelAgent frontend stopped before browser launch" >&2
+  exit 1
+}
+probe_owned_services || {
+  echo "ExcelAgent service ownership changed before browser launch" >&2
+  exit 1
+}
+kill -0 "$backend_pid" 2>/dev/null || {
+  echo "ExcelAgent backend stopped before browser launch" >&2
+  exit 1
+}
+kill -0 "$frontend_pid" 2>/dev/null || {
+  echo "ExcelAgent frontend stopped before browser launch" >&2
+  exit 1
+}
+
+if [[ $no_open -eq 0 ]]; then
+  open "http://127.0.0.1:5173/#token=${excel_agent_launch_token}"
+fi
+
+while kill -0 "$backend_pid" 2>/dev/null && kill -0 "$frontend_pid" 2>/dev/null; do
+  sleep 1
+done
+echo "An ExcelAgent development service stopped unexpectedly" >&2
+exit 1
