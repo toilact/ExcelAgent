@@ -4,11 +4,13 @@ The feature plan selects tests from this strategy and records exact commands. A 
 
 ## Session 2 command surface
 
-`./scripts/check` is the canonical automated PR gate and is the command run by CI after locked backend and frontend installs. Run it from any directory:
+`./scripts/check` is the canonical automated PR gate and is the command run by CI after locked backend and frontend installs. From the repository root, run:
 
 ```bash
 ./scripts/check
 ```
+
+The script resolves the repository root internally, so it also works from another current directory when invoked through a path to `scripts/check`.
 
 The Session 2 local evidence also requires the development smoke test:
 

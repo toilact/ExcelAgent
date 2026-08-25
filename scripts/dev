@@ -22,7 +22,6 @@ if [[ $no_open -eq 0 ]]; then
   command -v open >/dev/null || { echo "Missing required command: open" >&2; exit 1; }
 fi
 
-export EXCEL_AGENT_LAUNCH_TOKEN
 EXCEL_AGENT_LAUNCH_TOKEN=$(openssl rand -hex 32)
 backend_pid=""
 frontend_pid=""
@@ -36,20 +35,24 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-uv --directory "$repo_root/backend" run uvicorn excel_agent.api.app:create_app \
+EXCEL_AGENT_LAUNCH_TOKEN="$EXCEL_AGENT_LAUNCH_TOKEN" \
+  uv --directory "$repo_root/backend" run uvicorn excel_agent.api.app:create_app \
   --factory --host 127.0.0.1 --port 8000 &
 backend_pid=$!
 npm --prefix "$repo_root/frontend" run dev -- --host 127.0.0.1 --port 5173 &
 frontend_pid=$!
 
 ready=0
-for _ in {1..120}; do
-  if curl -fsS http://127.0.0.1:8000/api/health >/dev/null; then
+readiness_deadline=$((SECONDS + 30))
+while [[ $SECONDS -lt $readiness_deadline ]]; do
+  if curl -fsS --connect-timeout 1 --max-time 1 \
+    http://127.0.0.1:8000/api/health >/dev/null; then
     ready=1
     break
   fi
   kill -0 "$backend_pid" 2>/dev/null || break
   kill -0 "$frontend_pid" 2>/dev/null || break
+  [[ $SECONDS -lt $readiness_deadline ]] || break
   sleep 0.25
 done
 [[ $ready -eq 1 ]] || { echo "ExcelAgent services did not become ready" >&2; exit 1; }
