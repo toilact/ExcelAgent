@@ -3,3 +3,10 @@
 .env.*
 !.env.example
 .DS_Store
+backend/.venv/
+backend/.coverage
+backend/htmlcov/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/**/__pycache__/
