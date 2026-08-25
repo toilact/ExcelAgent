@@ -16,10 +16,10 @@ The feature plan selects tests from this strategy and records exact commands. A 
 2. Change task status or deadline while preserving unrelated sheets, formulas, styles, validations, and charts.
 3. Add a dashboard and chart to an existing workbook without changing unrelated fingerprints.
 4. Explain assumptions, warnings, impacted ranges, and risk for every plan revision; reject approval with a stale revision or source hash.
-5. Accept inputs immediately below 25 MB and 200,000 non-empty cells; reject inputs above either exact boundary.
+5. Accept inputs immediately below and exactly at 25 MB and 200,000 non-empty cells; reject inputs immediately above either boundary.
 6. Reject an XLSX that exceeds the entry, expanded-byte, single-entry, compression-ratio, sheet, cell-length, parse-time, or analyzer-memory limit before Excel or OpenAI is called.
-7. Reject arbitrary paths, external formulas, DDE, and CSV cells that would otherwise trigger formula execution.
-8. Reject non-loopback Host values, untrusted Origin/Referer values, missing/invalid launch tokens, and permissive CORS; permit the launched local UI with its valid token.
+7. Inventory macros and external connections during read-only analysis without mutation; reject operations that introduce or depend on them. Also reject arbitrary paths, external formulas, DDE, and CSV cells that would otherwise trigger formula execution.
+8. Reject non-loopback Host values, untrusted Origin/Referer values, missing/invalid/reused launch tokens, and permissive CORS. Verify fragment removal, one-time token invalidation, exact cookie flags, cookie enforcement for mutation/SSE/download, and absence of tokens/cookies from URLs after bootstrap, SQLite, and logs.
 9. Block safely while Excel has another workbook open and allow retry after it closes.
 10. Stop an Excel job at the five-minute timeout and restart only from a fresh working copy.
 11. Preserve the source hash after successful, failed, and timed-out execution.

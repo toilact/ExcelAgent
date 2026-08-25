@@ -15,7 +15,7 @@ The repository is currently at the documentation gate. Implementation begins onl
 
 ## Current constraints
 
-- Single user; no authentication in v1.
+- Single user with no user accounts; local access uses per-launch authorization.
 - Native macOS runtime; Docker and Windows support are outside the MVP.
 - Inputs are chat, `.xlsx`, and `.csv`.
 - Macro/UDF injection, arbitrary code, and external data connections are outside the MVP.

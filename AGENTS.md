@@ -11,7 +11,7 @@
 
 - Branch from updated `main` using `docs/`, `chore/`, or `feat/` plus the session slug.
 - Preserve the declarative boundary: the model produces typed plans; only the validated Excel adapter mutates a working copy.
-- Keep the uploaded source artifact immutable and keep the app bound to `127.0.0.1`.
+- Keep the uploaded source artifact immutable and preserve the complete local HTTP trust boundary: loopback binding, strict Host/Origin checks, and the launch-token-to-cookie exchange.
 - Follow TDD for behavior changes. Commit focused changes with short English Conventional Commit messages.
 - Before opening a PR, run the full automated gate and any Excel E2E scenario named by the feature plan.
 - Put verification evidence, risk, and rollback notes in the PR. One session produces one PR.

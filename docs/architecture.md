@@ -29,6 +29,6 @@ React UI
 3. Execution mutates a working copy and never the uploaded source.
 4. Only a verified output is downloadable as a result.
 5. Excel work is serialized and stops while another workbook is open.
-6. Local HTTP access requires a valid loopback host, trusted browser origin, and per-launch token.
+6. Local HTTP access requires a valid loopback host, trusted browser origin, and an authenticated session established by a one-time launch-token exchange.
 
-See [ADR-0001](adr/0001-declarative-excel-execution.md) and [ADR-0002](adr/0002-native-macos-runtime.md) for the reasons behind these boundaries.
+See [ADR-0001](adr/0001-declarative-excel-execution.md), [ADR-0002](adr/0002-native-macos-runtime.md), and [ADR-0003](adr/0003-local-http-trust-boundary.md) for the reasons behind these boundaries.
