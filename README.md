@@ -19,4 +19,3 @@ The repository is currently at the documentation gate. Implementation begins onl
 - Native macOS runtime; Docker and Windows support are outside the MVP.
 - Inputs are chat, `.xlsx`, and `.csv`.
 - Macro/UDF injection, arbitrary code, and external data connections are outside the MVP.
-

@@ -3,8 +3,8 @@
 ## Start here
 
 1. Read the [MVP design](docs/superpowers/specs/2026-08-25-excel-agent-mvp-design.md).
-2. Find the current session in [the roadmap](docs/roadmap.md); work on one session only.
-3. Read that feature's plan under `docs/superpowers/plans/` before changing code.
+2. Map the current branch to one item in [the roadmap](docs/roadmap.md); work on that session only. On `main`, inspect merged PRs and select the first unmet roadmap item before branching.
+3. From Session 2 onward, read that feature's plan under `docs/superpowers/plans/` before changing code. Session 1 follows the approved MVP design directly.
 4. Use the commands and evidence rules in [the testing guide](docs/testing.md).
 
 ## Delivery gate
@@ -22,4 +22,3 @@
 - **Excel automation, local setup, or permission failure:** read [runbook.md](docs/runbook.md).
 - **Test selection, CI, or completion claim:** read [testing.md](docs/testing.md).
 - **Scope or sequencing question:** read [roadmap.md](docs/roadmap.md); changing an approved decision requires user agreement first.
-

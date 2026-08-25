@@ -1,6 +1,6 @@
 # ExcelAgent MVP design
 
-- Status: Approved in conversation; pending repository review
+- Status: Accepted
 - Date: 2026-08-25
 - Audience: implementers and reviewers
 
@@ -30,7 +30,7 @@ The runtime uses Python 3.12 managed by `uv`, React/Vite, SQLite, and xlwings. I
 
 `WorkbookSnapshot` contains `source_artifact_id`, `source_hash`, sheet names and visibility, used ranges, required values and formulas, tables, names, validations, style summaries, charts, pivots, macro/external-link inventory, non-empty cell count, and analyzer warnings.
 
-Snapshot construction stops with a user-facing error when the artifact exceeds 25 MB or the workbook exceeds 200,000 non-empty cells.
+Validation before Excel or OpenAI rejects an artifact above 25 MB compressed, an XLSX archive with more than 10,000 entries, more than 250 MB total decompressed data, any entry above 100 MB, or a compression ratio above 100:1. Streaming XLSX/CSV inspection also rejects more than 200 sheets, 200,000 non-empty cells, or a cell value above Excel's 32,767-character limit. The analyzer runs in a monitored process with a 30-second parse deadline and 512 MiB RSS budget. Every rejection is user-facing and leaves the source artifact unchanged.
 
 ### WorkbookPlan
 
@@ -66,11 +66,14 @@ For editing, the service stores an immutable source and hash, analyzes a fresh c
 
 SQLite stores sessions, messages, plan revisions, usage, audit events, artifact metadata, and reports. Files live in a dedicated local artifact directory. A session and all associated files persist until explicit deletion.
 
+Deletion has recoverable observable semantics rather than a cross-resource atomicity claim. A database transaction marks the session `deleting`, immediately hiding it from normal APIs. The service atomically renames its artifact directory into a same-filesystem quarantine, removes the quarantine, then deletes database records. The endpoint is idempotent, and startup recovery completes every tombstoned deletion after a crash at any step.
+
 ## HTTP interface
 
 - `POST /api/sessions` creates a session.
+- `POST /api/bootstrap` exchanges the one-time launch token for the local HTTP session cookie.
 - `GET /api/sessions` lists local history.
-- `DELETE /api/sessions/{session_id}` deletes session metadata and artifacts atomically.
+- `DELETE /api/sessions/{session_id}` idempotently tombstones the session and schedules recoverable metadata/artifact cleanup.
 - `POST /api/sessions/{session_id}/artifacts` uploads validated XLSX or CSV content.
 - `POST /api/sessions/{session_id}/messages` adds or refines an instruction.
 - `GET /api/sessions/{session_id}/plans/current` returns the eligible plan revision.
@@ -80,7 +83,9 @@ SQLite stores sessions, messages, plan revisions, usage, audit events, artifact 
 - `GET /api/sessions/{session_id}/events` streams job state over SSE.
 - `GET /api/artifacts/{artifact_id}/download` returns an authorized local artifact; result artifacts require passing verification.
 
-Client requests use opaque IDs and never supply arbitrary filesystem paths. Authentication is absent in v1 because the server binds only to localhost.
+Client requests use opaque IDs and never supply arbitrary filesystem paths. User accounts are absent in v1, but loopback binding is not treated as sufficient authorization. The backend accepts only the configured `127.0.0.1` API Host, allows only the configured local UI Origin, requires Origin/Referer checks for mutations, and rejects credentialed wildcard CORS.
+
+At launch, the backend generates a 256-bit token and opens the UI with that token in the URL fragment, which browsers do not send to servers. Frontend bootstrap code immediately removes the fragment with `history.replaceState`, exchanges the token once through `POST /api/bootstrap`, and keeps no copy. The backend invalidates the launch token and sets an `HttpOnly; SameSite=Strict; Path=/` cookie for mutation, SSE, and download authorization. Tokens and cookies are absent from SQLite and application logs.
 
 ## Resource, privacy, and failure policy
 
@@ -97,4 +102,3 @@ The first golden workflow creates a task/project tracker with `Tasks`, `Lists`, 
 CI runs unit, contract, integration, frontend, lint, typecheck, and build checks without live OpenAI or Excel. OpenAI and Excel adapters have deterministic fakes. Relevant feature PRs also run local Excel E2E on the target Mac and record evidence in the PR. The complete acceptance suite is defined in `docs/testing.md`.
 
 Every roadmap item after bootstrap uses its own branch and pull request. Feature plans live under `docs/superpowers/plans/`, specify exact files and interfaces, follow RED/GREEN TDD, and end with focused English Conventional Commits. Direct pushes to `main` are prohibited after the empty bootstrap commit.
-

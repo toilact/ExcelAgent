@@ -18,4 +18,3 @@ OpenAI produces a strict, typed `WorkbookPlan`. A deterministic validator and wh
 
 - Model-generated Python: flexible but difficult to sandbox, audit, and constrain to approved ranges.
 - VBA or Office Add-in core: higher Office coupling and a second application stack before the local web MVP is proven.
-

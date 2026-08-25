@@ -19,4 +19,3 @@ Run FastAPI and Excel automation natively on macOS using `uv`. The browser UI co
 - Docker-only runtime: a container cannot directly own the required host Excel automation boundary.
 - Docker plus host executor: adds a service protocol and lifecycle subsystem before it is needed.
 - Cross-platform adapters: Windows COM would double the initial execution and E2E matrix.
-

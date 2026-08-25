@@ -12,16 +12,21 @@ The feature plan selects tests from this strategy and records exact commands. A 
 
 ## Required acceptance scenarios
 
-1. Create a task tracker from Vietnamese instructions and CSV.
-2. Change task status or deadline while preserving unrelated sheets, formulas, and styles.
-3. Add a dashboard and chart to an existing workbook.
-4. Reject approval with a stale revision or source hash.
-5. Reject oversized files, arbitrary paths, external formulas, and unsafe CSV content.
-6. Block safely while Excel has another workbook open.
-7. Preserve the source hash after successful and failed execution.
-8. Quarantine output with a new formula error or out-of-scope fingerprint change.
-9. Ensure planner timeout/schema failure never calls the executor.
-10. Delete session metadata and every associated artifact together.
+1. Create a task tracker from Vietnamese instructions and CSV; assert formulas, number/date formats, validation lists, conditional formatting, KPI totals, charts, and the `Tasks`, `Lists`, and `Dashboard` sheets.
+2. Change task status or deadline while preserving unrelated sheets, formulas, styles, validations, and charts.
+3. Add a dashboard and chart to an existing workbook without changing unrelated fingerprints.
+4. Explain assumptions, warnings, impacted ranges, and risk for every plan revision; reject approval with a stale revision or source hash.
+5. Accept inputs immediately below 25 MB and 200,000 non-empty cells; reject inputs above either exact boundary.
+6. Reject an XLSX that exceeds the entry, expanded-byte, single-entry, compression-ratio, sheet, cell-length, parse-time, or analyzer-memory limit before Excel or OpenAI is called.
+7. Reject arbitrary paths, external formulas, DDE, and CSV cells that would otherwise trigger formula execution.
+8. Reject non-loopback Host values, untrusted Origin/Referer values, missing/invalid launch tokens, and permissive CORS; permit the launched local UI with its valid token.
+9. Block safely while Excel has another workbook open and allow retry after it closes.
+10. Stop an Excel job at the five-minute timeout and restart only from a fresh working copy.
+11. Preserve the source hash after successful, failed, and timed-out execution.
+12. Quarantine output with a new formula error or out-of-scope fingerprint change.
+13. Ensure planner timeout or schema failure receives at most one retry and never calls the executor.
+14. Enforce 100,000 combined tokens per session and 8,000 output tokens per planning response while reporting usage.
+15. Simulate a crash before and after deletion quarantine; startup recovery must complete the tombstoned deletion without visible sessions, metadata leaks, or orphan artifacts.
 
 ## PR evidence
 
@@ -32,5 +37,19 @@ Every PR records:
 - skipped gates with a concrete reason;
 - risk and rollback notes.
 
-The milestone exit gate is the complete automated suite plus the complete local Excel regression suite.
+At each milestone exit, run the complete automated suite plus every local Excel regression scenario implemented so far. The Excel portion is not applicable until Milestone 2 introduces the real executor.
 
+## Invariant ownership
+
+| Invariant | Owning session | Required layer |
+| --- | --- | --- |
+| Typed operations and formula/DDE rejection | 3 | Unit |
+| Upload, archive, path, size, cell, time, and memory limits | 4 | Unit + integration |
+| Tombstoned deletion and crash recovery | 4 | Integration |
+| Excel busy detection and immutable snapshot | 5 | Contract + local Excel E2E |
+| Token limits, retry, and log redaction | 6 | Unit + contract |
+| Revision/source-hash approval | 7 | Unit + integration |
+| Five-minute timeout and fresh-copy recovery | 8 | Contract + local Excel E2E |
+| Local Host/Origin/token trust boundary | 2 | Integration + frontend |
+| Output fingerprints and formula verification | 11 | Contract + local Excel E2E |
+| Adversarial cross-boundary regression | 18 | Full automated + local Excel E2E |

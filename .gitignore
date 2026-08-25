@@ -2,16 +2,4 @@
 .env
 .env.*
 !.env.example
-.data/
-artifacts/
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-.venv/
-node_modules/
-dist/
 .DS_Store
-
