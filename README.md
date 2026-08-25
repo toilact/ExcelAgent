@@ -2,7 +2,33 @@
 
 ExcelAgent is a local-first macOS web application that turns Vietnamese office-work requests into reviewed, typed workbook operations. OpenAI plans the work; a deterministic Python adapter executes approved operations through Microsoft Excel without overwriting the uploaded source.
 
-The repository is currently at the documentation gate. Implementation begins only after the MVP design is reviewed and merged.
+The project foundation provides a local FastAPI health service, a React health screen, and a one-command development workflow.
+
+## Local development
+
+Prerequisites are macOS, Python 3.12 with `uv`, Node.js 24 with npm, `curl`, `openssl`, and the macOS `open` command. Microsoft Excel is not exercised by the Session 2 foundation, and no OpenAI API key is needed yet.
+
+Install the locked dependencies:
+
+```bash
+uv --directory backend sync --locked
+npm --prefix frontend ci
+```
+
+Start the backend and frontend from any directory with:
+
+```bash
+./scripts/dev
+```
+
+The launcher opens the UI with a one-time token in the URL fragment. The frontend removes the fragment before exchanging the token for the local session cookie. The token is not written to application logs or files.
+
+Run the automated PR gate and the Session 2 local smoke test with:
+
+```bash
+./scripts/check
+bash scripts/tests/dev-smoke.sh
+```
 
 ## Documentation
 

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+no_open=0
+if [[ ${1:-} == "--no-open" ]]; then
+  no_open=1
+  shift
+fi
+if [[ $# -ne 0 ]]; then
+  echo "Usage: ./scripts/dev [--no-open]" >&2
+  exit 2
+fi
+
+for required_command in uv npm curl openssl; do
+  command -v "$required_command" >/dev/null || {
+    echo "Missing required command: $required_command" >&2
+    exit 1
+  }
+done
+if [[ $no_open -eq 0 ]]; then
+  command -v open >/dev/null || { echo "Missing required command: open" >&2; exit 1; }
+fi
+
+export EXCEL_AGENT_LAUNCH_TOKEN
+EXCEL_AGENT_LAUNCH_TOKEN=$(openssl rand -hex 32)
+backend_pid=""
+frontend_pid=""
+
+cleanup() {
+  [[ -n $backend_pid ]] && kill "$backend_pid" 2>/dev/null || true
+  [[ -n $frontend_pid ]] && kill "$frontend_pid" 2>/dev/null || true
+  [[ -n $backend_pid ]] && wait "$backend_pid" 2>/dev/null || true
+  [[ -n $frontend_pid ]] && wait "$frontend_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+uv --directory "$repo_root/backend" run uvicorn excel_agent.api.app:create_app \
+  --factory --host 127.0.0.1 --port 8000 &
+backend_pid=$!
+npm --prefix "$repo_root/frontend" run dev -- --host 127.0.0.1 --port 5173 &
+frontend_pid=$!
+
+ready=0
+for _ in {1..120}; do
+  if curl -fsS http://127.0.0.1:8000/api/health >/dev/null; then
+    ready=1
+    break
+  fi
+  kill -0 "$backend_pid" 2>/dev/null || break
+  kill -0 "$frontend_pid" 2>/dev/null || break
+  sleep 0.25
+done
+[[ $ready -eq 1 ]] || { echo "ExcelAgent services did not become ready" >&2; exit 1; }
+
+if [[ $no_open -eq 0 ]]; then
+  open "http://127.0.0.1:5173/#token=${EXCEL_AGENT_LAUNCH_TOKEN}"
+fi
+
+while kill -0 "$backend_pid" 2>/dev/null && kill -0 "$frontend_pid" 2>/dev/null; do
+  sleep 1
+done
+echo "An ExcelAgent development service stopped unexpectedly" >&2
+exit 1

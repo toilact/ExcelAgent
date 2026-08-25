@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$repo_root"
+
+uv --directory backend lock --check
+uv --directory backend run ruff check .
+uv --directory backend run mypy src tests
+uv --directory backend run pytest
+npm --prefix frontend run lint
+npm --prefix frontend run typecheck
+npm --prefix frontend test
+npm --prefix frontend run build
+bash -n scripts/dev scripts/check scripts/tests/dev-smoke.sh

@@ -2,6 +2,22 @@
 
 The feature plan selects tests from this strategy and records exact commands. A completion claim requires a fresh full run against the current tree.
 
+## Session 2 command surface
+
+`./scripts/check` is the canonical automated PR gate and is the command run by CI after locked backend and frontend installs. Run it from any directory:
+
+```bash
+./scripts/check
+```
+
+The Session 2 local evidence also requires the development smoke test:
+
+```bash
+bash scripts/tests/dev-smoke.sh
+```
+
+The smoke test starts long-lived development services, validates the API and UI, and cleans them up. It is intentionally not run in CI.
+
 ## Test layers
 
 - **Unit:** domain schemas, validators, state transitions, formula/path safety, budget, and retention.

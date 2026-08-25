@@ -7,7 +7,35 @@ This runbook covers local runtime concerns. Feature-specific commands belong in 
 - macOS with Microsoft Excel desktop automation support.
 - Microsoft Excel for Mac installed at `/Applications/Microsoft Excel.app`.
 - Python 3.12 managed by `uv`.
+- Node.js 24 with npm.
+- `curl`, `openssl`, and the macOS `open` command available on `PATH`.
 - OpenAI API credentials supplied through environment configuration; secrets are never committed or logged.
+
+Session 2 does not call OpenAI, so no API key is needed for the current foundation workflow.
+
+## Foundation setup and development
+
+Install the locked backend and frontend dependencies:
+
+```bash
+uv --directory backend sync --locked
+npm --prefix frontend ci
+```
+
+Start both services from any directory:
+
+```bash
+./scripts/dev
+```
+
+The launcher generates a one-time token and opens it in the UI URL fragment. The frontend removes that fragment before exchanging the token for an HTTP-only local session cookie. The token is never persisted to an application log or file.
+
+Run the canonical automated gate and the mandatory Session 2 local smoke test:
+
+```bash
+./scripts/check
+bash scripts/tests/dev-smoke.sh
+```
 
 ## Runtime policy
 
