@@ -43,10 +43,13 @@ with socket.socket() as listener:
 
 unset EXCEL_AGENT_LAUNCH_TOKEN
 unset excel_agent_launch_token
+unset EXCEL_AGENT_UI_INSTANCE_CHALLENGE
+unset excel_agent_ui_instance_challenge
 assert_port_available 8000
 assert_port_available 5173
 
 excel_agent_launch_token=$(openssl rand -hex 32)
+excel_agent_ui_instance_challenge=$(openssl rand -hex 32)
 backend_pid=""
 frontend_pid=""
 
@@ -63,7 +66,8 @@ EXCEL_AGENT_LAUNCH_TOKEN="$excel_agent_launch_token" \
   uv --directory "$repo_root/backend" run uvicorn excel_agent.api.app:create_app \
   --factory --host 127.0.0.1 --port 8000 &
 backend_pid=$!
-npm --prefix "$repo_root/frontend" run dev -- --host 127.0.0.1 --port 5173 &
+EXCEL_AGENT_UI_INSTANCE_CHALLENGE="$excel_agent_ui_instance_challenge" \
+  npm --prefix "$repo_root/frontend" run dev -- --host 127.0.0.1 --port 5173 &
 frontend_pid=$!
 
 ready=0
@@ -75,31 +79,49 @@ set_curl_budget() {
   [[ $curl_request_timeout -le 1 ]] || curl_request_timeout=1
 }
 
+probe_owned_services() {
+  set_curl_budget || return 1
+  health=$(curl -fsS --connect-timeout "$curl_request_timeout" \
+    --max-time "$curl_request_timeout" \
+    http://127.0.0.1:8000/api/health 2>/dev/null || true)
+  [[ $health == *'"status":"ok"'* && \
+    $health == *'"service":"excel-agent-api"'* ]] || return 1
+
+  set_curl_budget || return 1
+  ui_instance_challenge=$(curl -fsS --connect-timeout "$curl_request_timeout" \
+    --max-time "$curl_request_timeout" \
+    http://127.0.0.1:5173/__excelagent/ready 2>/dev/null || true)
+  [[ $ui_instance_challenge == "$excel_agent_ui_instance_challenge" ]]
+}
+
 # Bash 3.2 exposes whole-second timing only. The one-second reserve keeps the
 # final bounded request or sleep inside the external 30-second budget.
 while set_curl_budget; do
   kill -0 "$backend_pid" 2>/dev/null || break
   kill -0 "$frontend_pid" 2>/dev/null || break
-  health=$(curl -fsS --connect-timeout "$curl_request_timeout" \
-    --max-time "$curl_request_timeout" \
-    http://127.0.0.1:8000/api/health 2>/dev/null || true)
-  if [[ $health == *'"status":"ok"'* && \
-    $health == *'"service":"excel-agent-api"'* ]]; then
-    if set_curl_budget && \
-      curl -fsS --connect-timeout "$curl_request_timeout" \
-        --max-time "$curl_request_timeout" \
-        http://127.0.0.1:5173/ >/dev/null 2>&1; then
-      kill -0 "$backend_pid" 2>/dev/null || break
-      kill -0 "$frontend_pid" 2>/dev/null || break
-      ready=1
-      break
-    fi
+  if probe_owned_services; then
+    kill -0 "$backend_pid" 2>/dev/null || break
+    kill -0 "$frontend_pid" 2>/dev/null || break
+    ready=1
+    break
   fi
   set_curl_budget || break
   sleep 0.25
 done
 [[ $ready -eq 1 ]] || { echo "ExcelAgent services did not become ready" >&2; exit 1; }
 
+kill -0 "$backend_pid" 2>/dev/null || {
+  echo "ExcelAgent backend stopped before browser launch" >&2
+  exit 1
+}
+kill -0 "$frontend_pid" 2>/dev/null || {
+  echo "ExcelAgent frontend stopped before browser launch" >&2
+  exit 1
+}
+probe_owned_services || {
+  echo "ExcelAgent service ownership changed before browser launch" >&2
+  exit 1
+}
 kill -0 "$backend_pid" 2>/dev/null || {
   echo "ExcelAgent backend stopped before browser launch" >&2
   exit 1

@@ -24,7 +24,7 @@ From the repository root, start the backend and frontend with:
 
 The script resolves the repository root internally, so it also works from another current directory when invoked through a path to `scripts/dev`.
 
-The launcher opens the UI with a one-time token in the URL fragment. The frontend removes the fragment before exchanging the token for the local session cookie. The token is not written to application logs or files.
+The launcher opens the UI with a one-time token in the URL fragment. Before opening, it verifies a separate fresh, non-secret Vite instance challenge so a service that races for the UI port cannot receive the token. The frontend toolchain never receives the bearer token. The browser removes the fragment before exchanging the token for the local session cookie, and the token is not written to application logs or files.
 
 From the repository root, run the automated PR gate and the Session 2 local smoke test with:
 

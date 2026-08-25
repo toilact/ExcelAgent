@@ -31,7 +31,7 @@ From the repository root, start both services:
 
 The script resolves the repository root internally, so it also works from another current directory when invoked through a path to `scripts/dev`.
 
-The launcher generates a one-time token and opens it in the UI URL fragment. The frontend removes that fragment before exchanging the token for an HTTP-only local session cookie. The token is never persisted to an application log or file.
+The launcher generates a one-time token and opens it in the UI URL fragment. Before opening, it verifies a separate fresh, non-secret Vite instance challenge so a service that races for the UI port cannot receive the token. The frontend toolchain never receives the bearer token. The browser removes that fragment before exchanging the token for an HTTP-only local session cookie, and the token is never persisted to an application log or file.
 
 From the repository root, run the canonical automated gate and the mandatory Session 2 local smoke test:
 

@@ -14,4 +14,8 @@ npm --prefix frontend test
 npm --prefix frontend run build
 npm --prefix frontend run test:e2e
 bash scripts/tests/dev-occupied-ports.sh
-bash -n scripts/dev scripts/check scripts/tests/dev-smoke.sh scripts/tests/dev-occupied-ports.sh
+bash scripts/tests/dev-ui-race.sh
+bash scripts/tests/dev-instance-challenge.sh
+bash -n scripts/dev scripts/check scripts/tests/dev-smoke.sh \
+  scripts/tests/dev-occupied-ports.sh scripts/tests/dev-ui-race.sh \
+  scripts/tests/dev-instance-challenge.sh
