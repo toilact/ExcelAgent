@@ -12,4 +12,6 @@ npm --prefix frontend run lint
 npm --prefix frontend run typecheck
 npm --prefix frontend test
 npm --prefix frontend run build
-bash -n scripts/dev scripts/check scripts/tests/dev-smoke.sh
+npm --prefix frontend run test:e2e
+bash scripts/tests/dev-occupied-ports.sh
+bash -n scripts/dev scripts/check scripts/tests/dev-smoke.sh scripts/tests/dev-occupied-ports.sh

@@ -12,13 +12,25 @@ The feature plan selects tests from this strategy and records exact commands. A 
 
 The script resolves the repository root internally, so it also works from another current directory when invoked through a path to `scripts/check`.
 
+Install the locked Playwright browser revision once after `npm ci`:
+
+```bash
+npm --prefix frontend exec -- playwright install chromium
+```
+
+`./scripts/check` includes the real backend/Vite/React browser acceptance. Run it directly while iterating with:
+
+```bash
+npm --prefix frontend run test:e2e
+```
+
 The Session 2 local evidence also requires the development smoke test:
 
 ```bash
 bash scripts/tests/dev-smoke.sh
 ```
 
-The smoke test starts long-lived development services, validates the API and UI, and cleans them up. It is intentionally not run in CI.
+The smoke test starts long-lived development services, validates the API and UI, and cleans them up. It is intentionally not run in CI. CI installs the locked Playwright Chromium revision and runs the isolated browser E2E through `./scripts/check`.
 
 ## Test layers
 

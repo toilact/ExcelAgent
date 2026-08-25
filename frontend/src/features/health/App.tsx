@@ -24,7 +24,7 @@ export function App() {
         <h1 id="app-title">ExcelAgent</h1>
         {state === "connecting" && <p>Connecting to ExcelAgent…</p>}
         {state === "ready" && <p>ExcelAgent is ready</p>}
-        {state === "failed" && <p role="alert">Không thể kết nối ExcelAgent.</p>}
+        {state === "failed" && <p role="alert" lang="vi">Không thể kết nối ExcelAgent.</p>}
       </section>
     </main>
   );

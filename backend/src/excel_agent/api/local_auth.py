@@ -5,6 +5,10 @@ from threading import Lock
 LOCAL_SESSION_COOKIE = "excelagent_local_session"
 
 
+def _tokens_match(candidate: str, expected: str) -> bool:
+    return secrets.compare_digest(candidate.encode(), expected.encode())
+
+
 class LocalSessionAuth:
     def __init__(
         self,
@@ -18,10 +22,10 @@ class LocalSessionAuth:
 
     def exchange_launch_token(self, token: str) -> str | None:
         with self._lock:
-            if self._launch_consumed or not secrets.compare_digest(token, self._launch_token):
+            if self._launch_consumed or not _tokens_match(token, self._launch_token):
                 return None
             self._launch_consumed = True
             return self._session_token
 
     def is_session_valid(self, token: str | None) -> bool:
-        return token is not None and secrets.compare_digest(token, self._session_token)
+        return token is not None and _tokens_match(token, self._session_token)

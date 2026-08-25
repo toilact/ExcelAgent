@@ -54,12 +54,51 @@ def test_bootstrap_rejects_untrusted_origin() -> None:
     )
 
     assert response.status_code == 403
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_trusted_ui_can_read_local_auth_rejection() -> None:
+    client = make_client()
+
+    response = client.get(
+        "/api/not-yet-implemented",
+        headers={"origin": ORIGIN},
+    )
+
+    assert response.status_code == 401
+    assert response.headers["access-control-allow-origin"] == ORIGIN
+    assert response.headers["access-control-allow-credentials"] == "true"
 
 
 def test_bootstrap_rejects_missing_launch_token() -> None:
     client = make_client()
 
     response = client.post("/api/bootstrap", headers={"origin": ORIGIN})
+
+    assert response.status_code == 401
+
+
+def test_bootstrap_rejects_non_ascii_launch_token_without_server_error() -> None:
+    client = make_client()
+
+    response = client.post(
+        "/api/bootstrap",
+        headers=[
+            (b"origin", ORIGIN.encode("ascii")),
+            (b"x-excelagent-launch-token", b"\xff"),
+        ],
+    )
+
+    assert response.status_code == 401
+
+
+def test_protected_api_rejects_non_ascii_cookie_without_server_error() -> None:
+    client = make_client()
+
+    response = client.get(
+        "/api/not-yet-implemented",
+        headers=[(b"cookie", b"excelagent_local_session=\xff")],
+    )
 
     assert response.status_code == 401
 

@@ -13,6 +13,7 @@ Install the locked dependencies:
 ```bash
 uv --directory backend sync --locked
 npm --prefix frontend ci
+npm --prefix frontend exec -- playwright install chromium
 ```
 
 From the repository root, start the backend and frontend with:
@@ -30,7 +31,10 @@ From the repository root, run the automated PR gate and the Session 2 local smok
 ```bash
 ./scripts/check
 bash scripts/tests/dev-smoke.sh
+npm --prefix frontend run test:e2e
 ```
+
+`./scripts/check` includes the browser E2E acceptance test. The explicit E2E command is useful when iterating on the real backend/Vite/React bootstrap flow; Playwright uses its locked Chromium revision and does not depend on a globally installed browser. The development smoke remains a separate mandatory local check and is not run in CI.
 
 ## Documentation
 

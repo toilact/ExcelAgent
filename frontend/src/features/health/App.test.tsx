@@ -57,7 +57,9 @@ test("shows an error when bootstrap rejects the launch token", async () => {
 
   render(<App />);
 
-  expect(await screen.findByRole("alert")).toHaveTextContent("Không thể kết nối ExcelAgent.");
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Không thể kết nối ExcelAgent.");
+  expect(alert).toHaveAttribute("lang", "vi");
 });
 
 test("only requests health when the URL has no launch token", async () => {

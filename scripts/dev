@@ -22,8 +22,30 @@ if [[ $no_open -eq 0 ]]; then
   command -v open >/dev/null || { echo "Missing required command: open" >&2; exit 1; }
 fi
 
+assert_port_available() {
+  local port=$1
+  uv --directory "$repo_root/backend" run python -c '
+import socket
+import sys
+
+port = int(sys.argv[1])
+with socket.socket() as listener:
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        listener.bind(("127.0.0.1", port))
+    except OSError:
+        raise SystemExit(1)
+' "$port" >/dev/null 2>&1 || {
+    echo "ExcelAgent requires free port: $port" >&2
+    exit 1
+  }
+}
+
 unset EXCEL_AGENT_LAUNCH_TOKEN
 unset excel_agent_launch_token
+assert_port_available 8000
+assert_port_available 5173
+
 excel_agent_launch_token=$(openssl rand -hex 32)
 backend_pid=""
 frontend_pid=""
@@ -45,6 +67,7 @@ npm --prefix "$repo_root/frontend" run dev -- --host 127.0.0.1 --port 5173 &
 frontend_pid=$!
 
 ready=0
+health=""
 readiness_deadline=$((SECONDS + 29))
 set_curl_budget() {
   curl_request_timeout=$((readiness_deadline - SECONDS))
@@ -55,18 +78,36 @@ set_curl_budget() {
 # Bash 3.2 exposes whole-second timing only. The one-second reserve keeps the
 # final bounded request or sleep inside the external 30-second budget.
 while set_curl_budget; do
-  if curl -fsS --connect-timeout "$curl_request_timeout" \
-    --max-time "$curl_request_timeout" \
-    http://127.0.0.1:8000/api/health >/dev/null; then
-    ready=1
-    break
-  fi
   kill -0 "$backend_pid" 2>/dev/null || break
   kill -0 "$frontend_pid" 2>/dev/null || break
+  health=$(curl -fsS --connect-timeout "$curl_request_timeout" \
+    --max-time "$curl_request_timeout" \
+    http://127.0.0.1:8000/api/health 2>/dev/null || true)
+  if [[ $health == *'"status":"ok"'* && \
+    $health == *'"service":"excel-agent-api"'* ]]; then
+    if set_curl_budget && \
+      curl -fsS --connect-timeout "$curl_request_timeout" \
+        --max-time "$curl_request_timeout" \
+        http://127.0.0.1:5173/ >/dev/null 2>&1; then
+      kill -0 "$backend_pid" 2>/dev/null || break
+      kill -0 "$frontend_pid" 2>/dev/null || break
+      ready=1
+      break
+    fi
+  fi
   set_curl_budget || break
   sleep 0.25
 done
 [[ $ready -eq 1 ]] || { echo "ExcelAgent services did not become ready" >&2; exit 1; }
+
+kill -0 "$backend_pid" 2>/dev/null || {
+  echo "ExcelAgent backend stopped before browser launch" >&2
+  exit 1
+}
+kill -0 "$frontend_pid" 2>/dev/null || {
+  echo "ExcelAgent frontend stopped before browser launch" >&2
+  exit 1
+}
 
 if [[ $no_open -eq 0 ]]; then
   open "http://127.0.0.1:5173/#token=${excel_agent_launch_token}"
